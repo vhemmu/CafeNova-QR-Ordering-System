@@ -211,6 +211,54 @@ def create_order():
         "orderId": order_id
     })
 
+@app.route("/api/orders", methods=["GET"])
+def get_orders():
+    """Returns all orders for the kitchen/admin dashboard."""
+
+    try:
+        with get_connection() as connection:
+
+            cursor = connection.execute("""
+                SELECT
+                    id,
+                    customer,
+                    phone,
+                    table_number,
+                    items,
+                    total,
+                    instructions,
+                    status
+                FROM orders
+                ORDER BY id DESC
+            """)
+
+            rows = cursor.fetchall()
+
+            orders = []
+
+            for row in rows:
+                orders.append({
+                    "id": row[0],
+                    "customer": row[1],
+                    "phone": row[2],
+                    "table": row[3],
+                    "items": json.loads(row[4]),
+                    "total": row[5],
+                    "instructions": row[6],
+                    "status": row[7]
+                })
+
+        return jsonify({
+            "success": True,
+            "orders": orders
+        })
+
+    except (sqlite3.Error, psycopg.Error) as db_error:
+
+        return jsonify({
+            "success": False,
+            "error": f"Database error: {db_error}"
+        }), 500
 
 # ---------------------------------------------------------------------------
 # Local development
