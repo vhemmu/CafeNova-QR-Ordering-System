@@ -78,7 +78,7 @@ def get_connection():
 # ---------------------------------------------------------------------------
 
 def init_db():
-    """Creates the orders table if it doesn't already exist."""
+    """Creates the orders table and adds missing columns safely."""
 
     with get_connection() as connection:
 
@@ -92,8 +92,16 @@ def init_db():
                     table_number TEXT NOT NULL,
                     items TEXT NOT NULL,
                     total DOUBLE PRECISION NOT NULL,
-                    instructions TEXT
+                    instructions TEXT,
+                    status TEXT NOT NULL DEFAULT 'pending'
                 )
+            """)
+
+            # Add status to an existing orders table
+            connection.execute("""
+                ALTER TABLE orders
+                ADD COLUMN IF NOT EXISTS status
+                TEXT NOT NULL DEFAULT 'pending'
             """)
 
         else:
@@ -106,16 +114,12 @@ def init_db():
                     table_number TEXT NOT NULL,
                     items TEXT NOT NULL,
                     total REAL NOT NULL,
-                    instructions TEXT
+                    instructions TEXT,
+                    status TEXT NOT NULL DEFAULT 'pending'
                 )
             """)
 
         connection.commit()
-
-
-# Initialize database when application starts
-init_db()
-
 
 # ---------------------------------------------------------------------------
 # Routes
