@@ -20,7 +20,7 @@
 // The one and only backend endpoint this app talks to. The Flask API is
 // treated as a black box — we only ever send it the shape it expects.
 console.log("JS Loaded");
-const API_URL = "http://127.0.0.1:5000/api/orders";
+const API_URL = "https://cafenova-backend.onrender.com/api/orders";
 
 // Change this to switch currency symbol app-wide.
 const CURRENCY_SYMBOL = "₹";
