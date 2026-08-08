@@ -9,8 +9,9 @@ Production:
 Local development:
 - Falls back to SQLite when DATABASE_URL is not set.
 
-Endpoint:
+Endpoints:
 POST /api/orders
+GET  /api/orders
 """
 
 import json
@@ -36,11 +37,21 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Local SQLite fallback
-DATABASE_PATH = os.path.join(BASE_DIR, "..", "database", "orders.db")
-
+DATABASE_PATH = os.path.join(
+    BASE_DIR,
+    "..",
+    "database",
+    "orders.db"
+)
 
 # Fields required in every order
-REQUIRED_FIELDS = ("customer", "phone", "table", "items", "total")
+REQUIRED_FIELDS = (
+    "customer",
+    "phone",
+    "table",
+    "items",
+    "total"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -63,7 +74,10 @@ def get_connection():
             connection.close()
 
     else:
-        os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
+        os.makedirs(
+            os.path.dirname(DATABASE_PATH),
+            exist_ok=True
+        )
 
         connection = sqlite3.connect(DATABASE_PATH)
 
@@ -78,12 +92,21 @@ def get_connection():
 # ---------------------------------------------------------------------------
 
 def init_db():
-    """Creates the orders table and adds missing columns safely."""
+    """
+    Creates the orders table if it doesn't exist.
+
+    Also safely adds the status column to an existing
+    PostgreSQL orders table.
+    """
 
     with get_connection() as connection:
 
         if DATABASE_URL:
+
+            # ---------------------------------------------------------------
             # PostgreSQL
+            # ---------------------------------------------------------------
+
             connection.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     id SERIAL PRIMARY KEY,
@@ -97,7 +120,7 @@ def init_db():
                 )
             """)
 
-            # Add status to an existing orders table
+            # Add status column to an existing PostgreSQL table
             connection.execute("""
                 ALTER TABLE orders
                 ADD COLUMN IF NOT EXISTS status
@@ -105,7 +128,11 @@ def init_db():
             """)
 
         else:
-            # SQLite
+
+            # ---------------------------------------------------------------
+            # SQLite — local development
+            # ---------------------------------------------------------------
+
             connection.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,6 +148,15 @@ def init_db():
 
         connection.commit()
 
+
+# ---------------------------------------------------------------------------
+# IMPORTANT:
+# Initialize database when Gunicorn/Render starts the application.
+# ---------------------------------------------------------------------------
+
+init_db()
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -130,24 +166,39 @@ def home():
     return "Café Nova Backend is Running!"
 
 
+# ---------------------------------------------------------------------------
+# CREATE ORDER
+# ---------------------------------------------------------------------------
+
 @app.route("/api/orders", methods=["POST"])
 def create_order():
-    """Validates an incoming order and saves it to the database."""
+    """
+    Validates an incoming order and saves it to the database.
+    """
 
     order = request.get_json(silent=True)
 
+    # Check JSON
     if order is None:
         return jsonify({
             "success": False,
             "error": "Request body must be JSON."
         }), 400
 
-    missing = [field for field in REQUIRED_FIELDS if field not in order]
+    # Check required fields
+    missing = [
+        field
+        for field in REQUIRED_FIELDS
+        if field not in order
+    ]
 
     if missing:
         return jsonify({
             "success": False,
-            "error": f"Missing required field(s): {', '.join(missing)}",
+            "error": (
+                f"Missing required field(s): "
+                f"{', '.join(missing)}"
+            )
         }), 400
 
     try:
@@ -155,12 +206,24 @@ def create_order():
         with get_connection() as connection:
 
             if DATABASE_URL:
-                # PostgreSQL uses %s placeholders
+
+                # -----------------------------------------------------------
+                # PostgreSQL
+                # -----------------------------------------------------------
+
                 cursor = connection.execute(
                     """
                     INSERT INTO orders
-                        (customer, phone, table_number, items, total, instructions)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                        (
+                            customer,
+                            phone,
+                            table_number,
+                            items,
+                            total,
+                            instructions
+                        )
+                    VALUES
+                        (%s, %s, %s, %s, %s, %s)
                     RETURNING id
                     """,
                     (
@@ -169,19 +232,31 @@ def create_order():
                         order["table"],
                         json.dumps(order["items"]),
                         order["total"],
-                        order.get("instructions", ""),
-                    ),
+                        order.get("instructions", "")
+                    )
                 )
 
                 order_id = cursor.fetchone()[0]
 
             else:
-                # SQLite uses ? placeholders
+
+                # -----------------------------------------------------------
+                # SQLite
+                # -----------------------------------------------------------
+
                 cursor = connection.execute(
                     """
                     INSERT INTO orders
-                        (customer, phone, table_number, items, total, instructions)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                        (
+                            customer,
+                            phone,
+                            table_number,
+                            items,
+                            total,
+                            instructions
+                        )
+                    VALUES
+                        (?, ?, ?, ?, ?, ?)
                     """,
                     (
                         order["customer"],
@@ -189,8 +264,8 @@ def create_order():
                         order["table"],
                         json.dumps(order["items"]),
                         order["total"],
-                        order.get("instructions", ""),
-                    ),
+                        order.get("instructions", "")
+                    )
                 )
 
                 order_id = cursor.lastrowid
@@ -211,11 +286,19 @@ def create_order():
         "orderId": order_id
     })
 
+
+# ---------------------------------------------------------------------------
+# GET ALL ORDERS
+# ---------------------------------------------------------------------------
+
 @app.route("/api/orders", methods=["GET"])
 def get_orders():
-    """Returns all orders for the kitchen/admin dashboard."""
+    """
+    Returns all orders for the kitchen/admin dashboard.
+    """
 
     try:
+
         with get_connection() as connection:
 
             cursor = connection.execute("""
@@ -237,6 +320,7 @@ def get_orders():
             orders = []
 
             for row in rows:
+
                 orders.append({
                     "id": row[0],
                     "customer": row[1],
@@ -260,11 +344,15 @@ def get_orders():
             "error": f"Database error: {db_error}"
         }), 500
 
+
 # ---------------------------------------------------------------------------
 # Local development
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+
     print("Café Nova Backend is starting...")
-    init_db()
-    app.run(debug=True)
+
+    app.run(
+        debug=True
+    )
