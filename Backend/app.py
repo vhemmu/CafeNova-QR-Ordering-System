@@ -1,20 +1,16 @@
 """
 Café Nova — Order API
 
-A small Flask backend that accepts table orders from the frontend and
-stores them in a local SQLite database.
+Flask backend for receiving table orders.
+
+Production:
+- Uses PostgreSQL through DATABASE_URL.
+
+Local development:
+- Falls back to SQLite when DATABASE_URL is not set.
 
 Endpoint:
-    POST /api/orders
-        Body (JSON): {
-            "customer": str,
-            "phone": str,
-            "table": str,
-            "instructions": str,
-            "items": list,
-            "total": number
-        }
-        Response: { "success": true, "orderId": int }
+POST /api/orders
 """
 
 import json
@@ -22,8 +18,10 @@ import os
 import sqlite3
 from contextlib import contextmanager
 
+import psycopg
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -33,48 +31,90 @@ app = Flask(__name__)
 CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Render PostgreSQL connection
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Local SQLite fallback
 DATABASE_PATH = os.path.join(BASE_DIR, "..", "database", "orders.db")
 
-# Fields that must be present in every order. "instructions" is allowed to
-# be an empty string, so it isn't checked for truthiness — only presence.
+
+# Fields required in every order
 REQUIRED_FIELDS = ("customer", "phone", "table", "items", "total")
 
 
 # ---------------------------------------------------------------------------
-# Database helpers
+# Database connection
 # ---------------------------------------------------------------------------
 
 @contextmanager
 def get_connection():
-    """Yields a SQLite connection and guarantees it gets closed afterwards,
-    even if an error is raised while it's open."""
-    os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
-    connection = sqlite3.connect(DATABASE_PATH)
-    try:
-        yield connection
-    finally:
-        connection.close()
+    """
+    Uses PostgreSQL when DATABASE_URL is available.
+    Otherwise uses local SQLite.
+    """
 
+    if DATABASE_URL:
+        connection = psycopg.connect(DATABASE_URL)
+
+        try:
+            yield connection
+        finally:
+            connection.close()
+
+    else:
+        os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
+
+        connection = sqlite3.connect(DATABASE_PATH)
+
+        try:
+            yield connection
+        finally:
+            connection.close()
+
+
+# ---------------------------------------------------------------------------
+# Database initialization
+# ---------------------------------------------------------------------------
 
 def init_db():
     """Creates the orders table if it doesn't already exist."""
-    with get_connection() as connection:
-        connection.execute("""
-            CREATE TABLE IF NOT EXISTS orders (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                customer TEXT NOT NULL,
-                phone TEXT NOT NULL,
-                table_number TEXT NOT NULL,
-                items TEXT NOT NULL,
-                total REAL NOT NULL,
-                instructions TEXT
-            )
-        """)
-        connection.commit()
-init_db()
 
-if __name__ == "__main__":
-    app.run(debug=True)
+    with get_connection() as connection:
+
+        if DATABASE_URL:
+            # PostgreSQL
+            connection.execute("""
+                CREATE TABLE IF NOT EXISTS orders (
+                    id SERIAL PRIMARY KEY,
+                    customer TEXT NOT NULL,
+                    phone TEXT NOT NULL,
+                    table_number TEXT NOT NULL,
+                    items TEXT NOT NULL,
+                    total DOUBLE PRECISION NOT NULL,
+                    instructions TEXT
+                )
+            """)
+
+        else:
+            # SQLite
+            connection.execute("""
+                CREATE TABLE IF NOT EXISTS orders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    customer TEXT NOT NULL,
+                    phone TEXT NOT NULL,
+                    table_number TEXT NOT NULL,
+                    items TEXT NOT NULL,
+                    total REAL NOT NULL,
+                    instructions TEXT
+                )
+            """)
+
+        connection.commit()
+
+
+# Initialize database when application starts
+init_db()
 
 
 # ---------------------------------------------------------------------------
@@ -89,12 +129,17 @@ def home():
 @app.route("/api/orders", methods=["POST"])
 def create_order():
     """Validates an incoming order and saves it to the database."""
+
     order = request.get_json(silent=True)
 
     if order is None:
-        return jsonify({"success": False, "error": "Request body must be JSON."}), 400
+        return jsonify({
+            "success": False,
+            "error": "Request body must be JSON."
+        }), 400
 
     missing = [field for field in REQUIRED_FIELDS if field not in order]
+
     if missing:
         return jsonify({
             "success": False,
@@ -102,36 +147,72 @@ def create_order():
         }), 400
 
     try:
+
         with get_connection() as connection:
-            cursor = connection.execute(
-                """
-                INSERT INTO orders
-                    (customer, phone, table_number, items, total, instructions)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    order["customer"],
-                    order["phone"],
-                    order["table"],
-                    json.dumps(order["items"]),  # store as valid JSON, not a Python repr
-                    order["total"],
-                    order.get("instructions", ""),
-                ),
-            )
+
+            if DATABASE_URL:
+                # PostgreSQL uses %s placeholders
+                cursor = connection.execute(
+                    """
+                    INSERT INTO orders
+                        (customer, phone, table_number, items, total, instructions)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (
+                        order["customer"],
+                        order["phone"],
+                        order["table"],
+                        json.dumps(order["items"]),
+                        order["total"],
+                        order.get("instructions", ""),
+                    ),
+                )
+
+                order_id = cursor.fetchone()[0]
+
+            else:
+                # SQLite uses ? placeholders
+                cursor = connection.execute(
+                    """
+                    INSERT INTO orders
+                        (customer, phone, table_number, items, total, instructions)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        order["customer"],
+                        order["phone"],
+                        order["table"],
+                        json.dumps(order["items"]),
+                        order["total"],
+                        order.get("instructions", ""),
+                    ),
+                )
+
+                order_id = cursor.lastrowid
+
             connection.commit()
-            order_id = cursor.lastrowid
-    except sqlite3.Error as db_error:
-        return jsonify({"success": False, "error": f"Database error: {db_error}"}), 500
+
+    except (sqlite3.Error, psycopg.Error) as db_error:
+
+        return jsonify({
+            "success": False,
+            "error": f"Database error: {db_error}"
+        }), 500
 
     print(f"NEW ORDER SAVED! id={order_id}")
-    return jsonify({"success": True, "orderId": order_id})
+
+    return jsonify({
+        "success": True,
+        "orderId": order_id
+    })
 
 
 # ---------------------------------------------------------------------------
-# Entry point
+# Local development
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    print("App is starting...")
+    print("Café Nova Backend is starting...")
     init_db()
     app.run(debug=True)
