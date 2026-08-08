@@ -348,6 +348,97 @@ def get_orders():
 # ---------------------------------------------------------------------------
 # Local development
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# UPDATE ORDER STATUS
+# ---------------------------------------------------------------------------
+
+@app.route("/api/orders/<int:order_id>", methods=["PATCH"])
+def update_order_status(order_id):
+    data = request.get_json(silent=True)
+
+    if data is None:
+        return jsonify({
+            "success": False,
+            "error": "Request body must be JSON."
+        }), 400
+
+    status = data.get("status")
+
+    allowed_statuses = (
+        "pending",
+        "preparing",
+        "ready",
+        "completed"
+    )
+
+    if status not in allowed_statuses:
+        return jsonify({
+            "success": False,
+            "error": "Invalid status."
+        }), 400
+
+    try:
+        with get_connection() as connection:
+
+            if DATABASE_URL:
+                cursor = connection.execute(
+                    """
+                    UPDATE orders
+                    SET status = %s
+                    WHERE id = %s
+                    RETURNING id, status
+                    """,
+                    (status, order_id)
+                )
+
+                result = cursor.fetchone()
+
+                if result is None:
+                    return jsonify({
+                        "success": False,
+                        "error": "Order not found."
+                    }), 404
+
+                updated_id = result[0]
+                updated_status = result[1]
+
+            else:
+                cursor = connection.execute(
+                    """
+                    UPDATE orders
+                    SET status = ?
+                    WHERE id = ?
+                    """,
+                    (status, order_id)
+                )
+
+                if cursor.rowcount == 0:
+                    return jsonify({
+                        "success": False,
+                        "error": "Order not found."
+                    }), 404
+
+                updated_id = order_id
+                updated_status = status
+
+            connection.commit()
+
+        print(
+            f"ORDER UPDATED! id={updated_id}, status={updated_status}"
+        )
+
+        return jsonify({
+            "success": True,
+            "orderId": updated_id,
+            "status": updated_status
+        })
+
+    except (sqlite3.Error, psycopg.Error) as db_error:
+
+        return jsonify({
+            "success": False,
+            "error": f"Database error: {db_error}"
+        }), 500
 
 if __name__ == "__main__":
 
