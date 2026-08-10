@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Café Nova — Kitchen Dashboard</title>
+
+    <link rel="stylesheet" href="admin.css">
+</head>
+
+<body>
+
+    <header class="dashboard-header">
+        <div>
+            <h1>☕ Café Nova</h1>
+            <p>Kitchen Dashboard</p>
+        </div>
+
+        <div class="header-right">
+            <span id="connectionStatus" class="status offline">
+                Connecting...
+            </span>
+
+            <button id="refreshBtn">
+                ↻ Refresh
+            </button>
+        </div>
+    </header>
+
+
+    <main class="dashboard-container">
+
+        <!-- Dashboard Statistics -->
+
+        <section class="stats">
+
+            <div class="stat-card">
+                <span class="stat-label">Pending</span>
+                <strong id="pendingCount">0</strong>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">Preparing</span>
+                <strong id="preparingCount">0</strong>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">Ready</span>
+                <strong id="readyCount">0</strong>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">Completed</span>
+                <strong id="completedCount">0</strong>
+            </div>
+
+        </section>
+
+
+        <!-- Orders -->
+
+        <section class="orders-section">
+
+            <div class="section-header">
+                <div>
+                    <h2>Orders</h2>
+                    <p>Manage incoming café orders</p>
+                </div>
+
+                <span id="lastUpdated">
+                    Not updated yet
+                </span>
+            </div>
+
+
+            <!-- Loading -->
+
+            <div id="loadingMessage" class="message">
+                Loading orders...
+            </div>
+
+
+            <!-- Error -->
+
+            <div id="errorMessage" class="message error hidden">
+                Unable to load orders.
+            </div>
+
+
+            <!-- Empty -->
+
+            <div id="emptyMessage" class="message hidden">
+                No orders found.
+            </div>
+
+
+            <!-- Order list -->
+
+            <div id="ordersContainer" class="orders-container">
+                <!-- Orders will be inserted by admin.js -->
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <script src="admin.js"></script>
+
+</body>
+</html>
