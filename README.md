@@ -1,121 +1,71 @@
-# ☕ CafeNova - QR Restaurant Ordering System
+# ☕ Café Nova — QR Ordering System
 
-CafeNova is a full-stack QR Code based restaurant ordering system that allows customers to scan a QR code, browse the digital menu, place orders, and send them directly to the restaurant.
+Café Nova is a full-stack restaurant ordering system built to simplify table-based food ordering.
+
+Customers can scan a QR code at their table, browse the menu, add items to a cart, and place an order. The order is sent to a Flask REST API, stored in PostgreSQL, and displayed on a separate kitchen dashboard where staff can manage the order status.
+
+## 🌐 Live Demo
+
+### Customer Website
+https://cafe-nova-qr-ordering-system.vercel.app/
+
+### Kitchen Dashboard
+https://cafenova-kitchen.vercel.app/
+
+### Backend API
+https://cafenova-backend.onrender.com/
 
 ---
 
 ## 🚀 Features
 
-- QR Code based table ordering
-- Digital restaurant menu
-- Shopping cart
-- Customer details form
-- Order confirmation screen
-- Flask backend
-- SQLite database
-- Responsive user interface
+### Customer Ordering
+
+- QR-based table ordering
+- Digital food and beverage menu
+- Add/remove items from cart
+- Quantity management
+- Customer name and phone number
+- Table number identification
+- Special instructions
+- Automatic order total
+- Order confirmation
+
+### Kitchen Dashboard
+
+- View incoming orders
+- View customer and table information
+- View ordered items and quantities
+- View special instructions
+- View order totals
+- Track order status
+- Pending → Preparing → Ready → Completed
+- Dashboard statistics
+- Manual order refresh
+- Online/offline API connection indicator
 
 ---
 
-## 🛠️ Tech Stack
+## 🔄 How It Works
 
-### Frontend
-- HTML5
-- CSS3
-- JavaScript
-
-### Backend
-- Python
-- Flask
-
-### Database
-- SQLite
-
----
-
-## 📂 Project Structure
-
-```
-CafeNova/
-│
-├── Backend/
-│   ├── app.py
-│   └── requirements.txt
-│
-├── frontend/
-│   ├── index.html
-│   ├── css/
-│   └── js/
-│
-├── .gitignore
-├── LICENSE
-└── README.md
-```
-
----
-
-## ⚙️ Installation
-
-### Clone Repository
-
-```bash
-git clone https://github.com/vhemmu/CafeNova-QR-Ordering-System.git
-```
-
-### Install Dependencies
-
-```bash
-cd Backend
-pip install -r requirements.txt
-```
-
-### Start Backend
-
-```bash
-python app.py
-```
-
-### Open Frontend
-
-Open `frontend/index.html`
-
-or use
-
-```bash
-python -m http.server 5500
-```
-
-Then visit
-
-```
-http://127.0.0.1:5500/frontend/index.html?table=5
-```
-
----
-
-## 📌 Project Status
-
-🚧 Project is currently under development.
-
-Upcoming features include:
-
-- QR code scanning
-- Live deployment
-- Admin dashboard
-- Order management
-- Payment integration
-
----
-
-## 👨‍💻 Author
-
-**Hemant Verma**
-
-GitHub:
-https://github.com/vhemmu
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License.
+```text
+Customer
+   │
+   │ Scan Table QR
+   ▼
+Café Nova Website
+   │
+   │ POST /api/orders
+   ▼
+Flask REST API
+   │
+   ▼
+PostgreSQL
+   │
+   │ GET /api/orders
+   ▼
+Kitchen Dashboard
+   │
+   │ PATCH /api/orders/<id>
+   ▼
+Order Status Updated
