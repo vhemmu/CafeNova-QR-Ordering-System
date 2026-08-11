@@ -11,6 +11,34 @@
 
 <body>
 
+    <!-- Staff Login -->
+    <section id="loginScreen" class="login-screen">
+        <div class="login-card">
+            <div class="login-brand">☕</div>
+            <h1>Café Nova</h1>
+            <p>Staff Login</p>
+
+            <form id="loginForm">
+                <label for="loginRole">Role</label>
+                <select id="loginRole" required>
+                    <option value="kitchen">Kitchen</option>
+                    <option value="manager">Manager</option>
+                </select>
+
+                <label for="loginUsername">Username</label>
+                <input id="loginUsername" type="text" autocomplete="username" required>
+
+                <label for="loginPassword">Password</label>
+                <input id="loginPassword" type="password" autocomplete="current-password" required>
+
+                <button type="submit" class="login-btn">Login</button>
+                <p id="loginError" class="login-error hidden">Invalid login details.</p>
+            </form>
+        </div>
+    </section>
+
+    <div id="dashboard" class="hidden">
+
     <header class="dashboard-header">
         <div>
             <h1>☕ Café Nova</h1>
@@ -24,6 +52,10 @@
 
             <button id="refreshBtn">
                 ↻ Refresh
+            </button>
+
+            <button id="logoutBtn" class="logout-btn">
+                Logout
             </button>
         </div>
     </header>
@@ -105,6 +137,8 @@
 
     </main>
 
+
+    </div>
 
     <script src="admin.js"></script>
 

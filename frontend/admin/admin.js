@@ -1,3 +1,76 @@
+/* ---------------------------------------------------------
+   DEMO STAFF LOGIN
+   NOTE: This is frontend-only demo access protection.
+   It is NOT secure production authentication.
+--------------------------------------------------------- */
+
+const DEMO_USERS = {
+    kitchen: {
+        username: "kitchen",
+        password: "CafeKitchen@2026"
+    },
+    manager: {
+        username: "manager",
+        password: "CafeManager@2026"
+    }
+};
+
+const loginScreen = document.getElementById("loginScreen");
+const dashboard = document.getElementById("dashboard");
+const loginForm = document.getElementById("loginForm");
+const loginRole = document.getElementById("loginRole");
+const loginUsername = document.getElementById("loginUsername");
+const loginPassword = document.getElementById("loginPassword");
+const loginError = document.getElementById("loginError");
+const logoutBtn = document.getElementById("logoutBtn");
+
+function showDashboard() {
+    loginScreen.classList.add("hidden");
+    dashboard.classList.remove("hidden");
+}
+
+function showLogin() {
+    loginScreen.classList.remove("hidden");
+    dashboard.classList.add("hidden");
+}
+
+function isLoggedIn() {
+    return sessionStorage.getItem("cafeNovaStaffRole") !== null;
+}
+
+loginForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const role = loginRole.value;
+    const user = DEMO_USERS[role];
+
+    if (
+        user &&
+        loginUsername.value.trim() === user.username &&
+        loginPassword.value === user.password
+    ) {
+        sessionStorage.setItem("cafeNovaStaffRole", role);
+        loginError.classList.add("hidden");
+        loginPassword.value = "";
+        showDashboard();
+        loadOrders();
+        return;
+    }
+
+    loginError.classList.remove("hidden");
+});
+
+logoutBtn.addEventListener("click", () => {
+    sessionStorage.removeItem("cafeNovaStaffRole");
+    showLogin();
+});
+
+if (isLoggedIn()) {
+    showDashboard();
+} else {
+    showLogin();
+}
+
 const API_URL = "https://cafenova-backend.onrender.com/api/orders";
 
 const ordersContainer = document.getElementById("ordersContainer");
